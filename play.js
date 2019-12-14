@@ -1,4 +1,4 @@
-function play()
+document.getElementById('restartButton').onclick = function()
 {
 	let positions = [];
 	for (let x = 0; x < game.boardSize; x++)
@@ -8,17 +8,31 @@ function play()
 	let joker = new Piece(game);
 
 	let piece_chance = [0, 0.09, 0.06, 0.10, 0.20, 0.01, 0.04];
+	let bsqp = game.boardSize * game.boardSize + 1;
 
 	function score()
 	{
-		let moves = 0;
+		let moves = [0, 0];
+		let black = 0;
+		let white = 0;
 
-		for (let col of game.board)
-			for (let piece of col)
-				if (piece && !piece.frozen)
-					moves += piece.getDestinationTiles().length;
+		for (let pos of positions) {
+			let piece = game.board[pos.x][pos.y];
+			if (!piece)
+				continue;
+			black += piece.isBlack;
+			white += !piece.isBlack;
+			if (piece.frozen)
+				continue;
+			for (let dest of piece.getDestinationTiles()) {
+				let capturedPiece = game.board[dest.x][dest.y];
+				++moves[+(capturedPiece && capturedPiece.frozen)];
+			}
+		}
 
-		return moves ? moves : -12;
+		let penalty = moves[1] ? 0 : moves[0] ? 100 : 1e9;
+
+		return moves[1] + (moves[0] / 64) - penalty + black * white;
 	}
 
 	function randScore(recurse)
@@ -51,7 +65,7 @@ function play()
 	function bestMove()
 	{
 		let best = { score: -1/0, pos: undefined, dest: undefined };
-		let recurse = score() < 3;
+		let recurse = false;
 
 		for (let pos of positions) {
 			let piece = game.board[pos.x][pos.y];
@@ -68,6 +82,12 @@ function play()
 				piece.position = dest;
 
 				let score = randScore(recurse);
+				if (capturedPiece && capturedPiece.frozen)
+					score += 100;
+				else if (dest.x == 2 && dest.y == 2)
+					score -= 4;
+				else if (dest.x > 0 && dest.x < 4 && dest.y > 0 && dest.y < 4)
+					score += 16;
 
 				game.board[dest.x][dest.y] = capturedPiece;
 
@@ -86,12 +106,13 @@ function play()
 	function main() {
 		let best = bestMove();
 		if (!best.pos)
-			return "):";
+			return console.log("):");
 		game.move(best.pos, best.dest);
 		game.placeRandomPieces(1);
 
-		setTimeout(play, 16);
+		setTimeout(main, 0);
 	}
 
+	restartButtonClick();
 	return main();
-}
+};
